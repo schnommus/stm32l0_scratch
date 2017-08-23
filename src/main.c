@@ -78,6 +78,9 @@ void Process_Sensors(tsl_user_status_t status);
   */
 int main(void)
 {
+
+  printf("Hello, World - I am but a smartfork");
+
   tsl_user_status_t tsl_status;
   
   /* STM32L0xx HAL library initialization:

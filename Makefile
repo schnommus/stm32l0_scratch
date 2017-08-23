@@ -63,7 +63,7 @@ $(EXECUTABLE): $(SRC)
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 
 debug_server:
-	sudo openocd -f board/stm32l0discovery.cfg
+	sudo st-util
 
 debug_gdb:
-	arm-none-eabi-gdb out.elf -ex "target remote localhost:3333" -ex "monitor reset halt" -ex "load" -ex "monitor reset halt" -ex "monitor arm semihosting enable" -ex "b main" -ex "c"
+	arm-none-eabi-gdb out.elf -ex "target remote localhost:4242" -ex "monitor reset halt" -ex "load" -ex "monitor semihosting enable" -ex "b main" -ex "j Reset_Handler" -ex "c"
