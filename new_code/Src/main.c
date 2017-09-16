@@ -109,10 +109,12 @@ int main(void)
   /* USER CODE END 2 */
 
   /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+
+  printf("Starting main loop\n");
   while (1) {
-      HAL_Delay(100);
-      HAL_GPIO_TogglePin(GPIOB, LED_RED_Pin);
+      HAL_Delay(200);
+      HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+      printf("Toggling LED... :D\n");
   }
   /* USER CODE END 3 */
 
