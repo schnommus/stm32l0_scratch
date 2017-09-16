@@ -112,9 +112,32 @@ int main(void)
 
   printf("Starting main loop\n");
   while (1) {
-      HAL_Delay(200);
-      HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-      printf("Toggling LED... :D\n");
+
+      // TOUCH SCREEN TEST
+      // ON *DEV* board, X2 is connected, and CAP1
+      // Corr. TS_G1_IO3 (X2), TS_G1_IO4 (CAP1)
+      // NOTE I HAVE SWAPPED CAP1 AND X3 PINS FOR THIS
+      // TO WORK ON THE DEV BOARD (in main.h)
+
+      HAL_TSC_IODischarge(&htsc, ENABLE);
+
+      HAL_Delay(1);
+
+      if(HAL_TSC_Start(&htsc) != HAL_OK) {
+          printf("Error in HAL_TSC_Start");
+      }
+
+      while(HAL_TSC_GetState(&htsc) == HAL_TSC_STATE_BUSY) {
+        //nothin
+      }
+
+      __HAL_TSC_CLEAR_FLAG(&htsc, (TSC_FLAG_EOA | TSC_FLAG_MCE));
+
+      if( HAL_TSC_GroupGetStatus(&htsc, TSC_GROUP1_IDX) == TSC_GROUP_COMPLETED) {
+          int v = HAL_TSC_GroupGetValue(&htsc, TSC_GROUP1_IDX);
+          printf("%d\n", v);
+      }
+
   }
   /* USER CODE END 3 */
 
@@ -274,15 +297,14 @@ static void MX_TSC_Init(void)
   htsc.Init.SpreadSpectrum = DISABLE;
   htsc.Init.SpreadSpectrumDeviation = 1;
   htsc.Init.SpreadSpectrumPrescaler = TSC_SS_PRESC_DIV1;
-  htsc.Init.PulseGeneratorPrescaler = TSC_PG_PRESC_DIV64;
-  htsc.Init.MaxCountValue = TSC_MCV_255;
+  htsc.Init.PulseGeneratorPrescaler = TSC_PG_PRESC_DIV8;
+  htsc.Init.MaxCountValue = TSC_MCV_16383;
   htsc.Init.IODefaultMode = TSC_IODEF_OUT_PP_LOW;
   htsc.Init.SynchroPinPolarity = TSC_SYNC_POLARITY_FALLING;
   htsc.Init.AcquisitionMode = TSC_ACQ_MODE_NORMAL;
   htsc.Init.MaxCountInterrupt = DISABLE;
-  htsc.Init.ChannelIOs = TSC_GROUP1_IO2|TSC_GROUP1_IO3|TSC_GROUP1_IO4|TSC_GROUP2_IO2
-                    |TSC_GROUP2_IO3|TSC_GROUP2_IO4|TSC_GROUP4_IO2|TSC_GROUP4_IO3;
-  htsc.Init.SamplingIOs = TSC_GROUP1_IO1|TSC_GROUP2_IO1|TSC_GROUP4_IO1;
+  htsc.Init.ChannelIOs = TSC_GROUP1_IO3;
+  htsc.Init.SamplingIOs = TSC_GROUP1_IO4;
   if (HAL_TSC_Init(&htsc) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);

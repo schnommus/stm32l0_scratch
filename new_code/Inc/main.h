@@ -46,13 +46,13 @@
 
 /* Private define ------------------------------------------------------------*/
 
-#define TOUCH_CAP1_Pin GPIO_PIN_0
+#define TOUCH_CAP1_Pin GPIO_PIN_3
 #define TOUCH_CAP1_GPIO_Port GPIOA
 #define TOUCH_X1_Pin GPIO_PIN_1
 #define TOUCH_X1_GPIO_Port GPIOA
 #define TOUCH_X2_Pin GPIO_PIN_2
 #define TOUCH_X2_GPIO_Port GPIOA
-#define TOUCH_X3_Pin GPIO_PIN_3
+#define TOUCH_X3_Pin GPIO_PIN_0
 #define TOUCH_X3_GPIO_Port GPIOA
 #define TOUCH_CAP2_Pin GPIO_PIN_4
 #define TOUCH_CAP2_GPIO_Port GPIOA
