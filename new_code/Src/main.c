@@ -110,12 +110,42 @@ int main(void)
 
   /* Infinite loop */
 
+  HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_SET);
+
+  HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+  HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+
   printf("Starting main loop\n");
+
+  int try_to_turn_off = 0;
+
   while (1) {
+      if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
+          try_to_turn_off = 1;
+      }
+      HAL_Delay(200);
+      HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+      HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
       HAL_Delay(200);
       HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+      HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+      HAL_Delay(200);
+      HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+      HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
       printf("Toggling LED... :D\n");
+
+      if(try_to_turn_off && HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
+          break;
+      }
+
+      try_to_turn_off = 0;
   }
+
+  HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+  HAL_Delay(1000);
+  HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_RESET);
+  // Power is cut here ^
+  HAL_Delay(1000);
   /* USER CODE END 3 */
 
 }
