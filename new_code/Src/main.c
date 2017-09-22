@@ -74,6 +74,87 @@ static void MX_USART1_UART_Init(void);
 
 /* USER CODE END 0 */
 
+#define TOUCH_SIZE_X 4
+#define TOUCH_SIZE_Y 3
+
+typedef struct _touch_pad {
+    uint32_t channel_io;
+    uint32_t sample_io;
+    uint32_t sample_group;
+} touch_pad_t;
+
+#define TOUCH_INDEX_X1 0
+#define TOUCH_INDEX_X2 1
+#define TOUCH_INDEX_X3 2
+#define TOUCH_INDEX_X4 3
+#define TOUCH_INDEX_Y1 4
+#define TOUCH_INDEX_Y2 5
+#define TOUCH_INDEX_Y3 6
+
+touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
+    // X PADS
+    {TSC_GROUP1_IO2, TSC_GROUP1_IO1, TSC_GROUP1_IDX}, // 2 diamonds closest to chip (x1)
+    {TSC_GROUP1_IO3, TSC_GROUP1_IO1, TSC_GROUP1_IDX}, // (x2)
+    {TSC_GROUP1_IO4, TSC_GROUP1_IO1, TSC_GROUP1_IDX}, // (x3)
+    {TSC_GROUP2_IO2, TSC_GROUP2_IO1, TSC_GROUP2_IDX}, // 2 diamonds closest to end (x4)
+    // Y PADS
+    {TSC_GROUP2_IO3, TSC_GROUP2_IO1, TSC_GROUP2_IDX}, // Y, LED side (y1)
+    {TSC_GROUP2_IO4, TSC_GROUP2_IO1, TSC_GROUP2_IDX}, // (y2)
+    {TSC_GROUP4_IO2, TSC_GROUP4_IO1, TSC_GROUP4_IDX}, // Y, Switch side (y3)
+};
+
+#define SAMPLE_X 0
+#define SAMPLE_Y 1
+
+// Index is 0 for first pad at that index
+int sample_touch_at (int index, int what_to_sample) {
+
+    if(what_to_sample == SAMPLE_X) {
+        if(index >= TOUCH_SIZE_X) {
+            printf("Trying to sample out-of-range X touch pad");
+            return 0;
+        }
+    } else {
+        if(index >= TOUCH_SIZE_Y) {
+            printf("Trying to sample out-of-range Y touch pad");
+            return 0;
+        }
+        index += 4;
+    }
+
+
+    TSC_IOConfigTypeDef touch_conf;
+    touch_conf.ShieldIOs = 0;
+    touch_conf.ChannelIOs = touch_matrix[index].channel_io;
+    touch_conf.SamplingIOs = touch_matrix[index].sample_io;
+
+    HAL_TSC_IOConfig(&htsc, &touch_conf);
+
+    HAL_TSC_IODischarge(&htsc, ENABLE);
+
+    HAL_Delay(1);
+
+    if(HAL_TSC_Start(&htsc) != HAL_OK) {
+        printf("Error in HAL_TSC_Start");
+    }
+
+    while(HAL_TSC_GetState(&htsc) == HAL_TSC_STATE_BUSY) {
+        // Wait for the reading to complete
+    }
+
+    __HAL_TSC_CLEAR_FLAG(&htsc, (TSC_FLAG_EOA | TSC_FLAG_MCE));
+
+    if( HAL_TSC_GroupGetStatus(&htsc, touch_matrix[index].sample_group)
+            == TSC_GROUP_COMPLETED) {
+        int v = HAL_TSC_GroupGetValue(&htsc, touch_matrix[index].sample_group);
+        return v;
+    }
+
+    printf("Touch read didn't complete?");
+
+    return 0;
+}
+
 int main(void)
 {
 
@@ -113,30 +194,28 @@ int main(void)
   printf("Starting main loop\n");
   while (1) {
 
+      int x1 = sample_touch_at(0, SAMPLE_X);
+      int x2 = sample_touch_at(1, SAMPLE_X);
+      int x3 = sample_touch_at(2, SAMPLE_X);
+      int x4 = sample_touch_at(3, SAMPLE_X);
+
+      int y1 = sample_touch_at(0, SAMPLE_Y);
+      int y2 = sample_touch_at(1, SAMPLE_Y);
+      int y3 = sample_touch_at(2, SAMPLE_Y);
+
       // TOUCH SCREEN TEST
-      // ON *DEV* board, X2 is connected, and CAP1
-      // Corr. TS_G1_IO3 (X2), TS_G1_IO4 (CAP1)
-      // NOTE I HAVE SWAPPED CAP1 AND X3 PINS FOR THIS
-      // TO WORK ON THE DEV BOARD (in main.h)
+      printf("** READ TOUCHPAD **\n");
+      printf("  X PADS\n");
+      printf("X1=%d\n"
+             "X2=%d\n"
+             "X3=%d\n"
+             "X4=%d\n", x1, x2, x3, x4 );
+      printf("  Y PADS\n"
+             "Y1=%d\n"
+             "Y2=%d\n"
+             "Y3=%d\n", y1, y2, y3);
 
-      HAL_TSC_IODischarge(&htsc, ENABLE);
-
-      HAL_Delay(1);
-
-      if(HAL_TSC_Start(&htsc) != HAL_OK) {
-          printf("Error in HAL_TSC_Start");
-      }
-
-      while(HAL_TSC_GetState(&htsc) == HAL_TSC_STATE_BUSY) {
-        //nothin
-      }
-
-      __HAL_TSC_CLEAR_FLAG(&htsc, (TSC_FLAG_EOA | TSC_FLAG_MCE));
-
-      if( HAL_TSC_GroupGetStatus(&htsc, TSC_GROUP1_IDX) == TSC_GROUP_COMPLETED) {
-          int v = HAL_TSC_GroupGetValue(&htsc, TSC_GROUP1_IDX);
-          printf("%d\n", v);
-      }
+      HAL_Delay(300);
 
   }
   /* USER CODE END 3 */
@@ -298,13 +377,13 @@ static void MX_TSC_Init(void)
   htsc.Init.SpreadSpectrumDeviation = 1;
   htsc.Init.SpreadSpectrumPrescaler = TSC_SS_PRESC_DIV1;
   htsc.Init.PulseGeneratorPrescaler = TSC_PG_PRESC_DIV8;
-  htsc.Init.MaxCountValue = TSC_MCV_16383;
+  htsc.Init.MaxCountValue = TSC_MCV_8191;
   htsc.Init.IODefaultMode = TSC_IODEF_OUT_PP_LOW;
   htsc.Init.SynchroPinPolarity = TSC_SYNC_POLARITY_FALLING;
   htsc.Init.AcquisitionMode = TSC_ACQ_MODE_NORMAL;
   htsc.Init.MaxCountInterrupt = DISABLE;
-  htsc.Init.ChannelIOs = TSC_GROUP1_IO3;
-  htsc.Init.SamplingIOs = TSC_GROUP1_IO4;
+  htsc.Init.ChannelIOs = TSC_GROUP1_IO2;
+  htsc.Init.SamplingIOs = TSC_GROUP1_IO1;
   if (HAL_TSC_Init(&htsc) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
