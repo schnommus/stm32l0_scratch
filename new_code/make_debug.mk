@@ -22,7 +22,7 @@ TARGET = new_code
 # debug build?
 DEBUG = 1
 # optimization
-OPT = -Og
+OPT = -O0
 
 
 #######################################
@@ -107,6 +107,7 @@ CPU = -mcpu=cortex-m0plus
 # NONE for Cortex-M0/M0+/M3
 
 # float-abi
+FLOAT-ABI = -mfloat-abi=soft
 
 
 # mcu
@@ -155,7 +156,7 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)"
 LDSCRIPT = STM32L053C8Tx_FLASH.ld
 
 # libraries
-LIBS = -lm -lnosys -specs=rdimon.specs -lc -lrdimon
+LIBS = -lm -lnosys -specs=rdimon.specs -lc --specs=nano.specs -u _printf_float -lrdimon
 LIBDIR =
 LDFLAGS = $(MCU) -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 

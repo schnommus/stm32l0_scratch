@@ -39,6 +39,8 @@
 #include "main.h"
 #include "stm32l0xx_hal.h"
 
+#include <math.h>
+
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -81,26 +83,19 @@ typedef struct _touch_pad {
     uint32_t channel_io;
     uint32_t sample_io;
     uint32_t sample_group;
+    int32_t calibration;
 } touch_pad_t;
-
-#define TOUCH_INDEX_X1 0
-#define TOUCH_INDEX_X2 1
-#define TOUCH_INDEX_X3 2
-#define TOUCH_INDEX_X4 3
-#define TOUCH_INDEX_Y1 4
-#define TOUCH_INDEX_Y2 5
-#define TOUCH_INDEX_Y3 6
 
 touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
     // X PADS
-    {TSC_GROUP1_IO2, TSC_GROUP1_IO1, TSC_GROUP1_IDX}, // 2 diamonds closest to chip (x1)
-    {TSC_GROUP1_IO3, TSC_GROUP1_IO1, TSC_GROUP1_IDX}, // (x2)
-    {TSC_GROUP1_IO4, TSC_GROUP1_IO1, TSC_GROUP1_IDX}, // (x3)
-    {TSC_GROUP2_IO2, TSC_GROUP2_IO1, TSC_GROUP2_IDX}, // 2 diamonds closest to end (x4)
+    {TSC_GROUP1_IO2, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 2305}, // 2 diamonds closest to chip (x1)
+    {TSC_GROUP1_IO3, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 2154}, // (x2)
+    {TSC_GROUP1_IO4, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 2313}, // (x3)
+    {TSC_GROUP2_IO2, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 1928}, // 2 diamonds closest to end (x4)
     // Y PADS
-    {TSC_GROUP2_IO3, TSC_GROUP2_IO1, TSC_GROUP2_IDX}, // Y, LED side (y1)
-    {TSC_GROUP2_IO4, TSC_GROUP2_IO1, TSC_GROUP2_IDX}, // (y2)
-    {TSC_GROUP4_IO2, TSC_GROUP4_IO1, TSC_GROUP4_IDX}, // Y, Switch side (y3)
+    {TSC_GROUP2_IO3, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 2353}, // Y, LED side (y1)
+    {TSC_GROUP2_IO4, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 1866}, // (y2)
+    {TSC_GROUP4_IO2, TSC_GROUP4_IO1, TSC_GROUP4_IDX, 5476}, // Y, Switch side (y3)
 };
 
 #define SAMPLE_X 0
@@ -147,12 +142,43 @@ int sample_touch_at (int index, int what_to_sample) {
     if( HAL_TSC_GroupGetStatus(&htsc, touch_matrix[index].sample_group)
             == TSC_GROUP_COMPLETED) {
         int v = HAL_TSC_GroupGetValue(&htsc, touch_matrix[index].sample_group);
-        return v;
+        return touch_matrix[index].calibration - v;
     }
 
     printf("Touch read didn't complete?");
 
     return 0;
+}
+
+typedef struct _interpolation_result {
+    float position;
+    float pressure;
+} interpolation_result_t;
+
+#define PI 3.1415926535
+
+// Takes individual pressure values
+// Translates into a position (from 0.0 to 1.0) and a touch pressure
+// (Note the position may not be especially meaningful for low pressures!)
+interpolation_result_t interpolate_touch_values(float *values, int n_values) {
+    float x_total = 0, y_total = 0;
+
+    for(int i = 0; i != n_values; ++i) {
+        // Vary this_angle from 0 - pi/2, so we don't need atan2.
+        float this_angle = PI*0.5*((float)i)/((float)n_values-1.0);
+        x_total += values[i]*cos(this_angle);
+        y_total += values[i]*sin(this_angle);
+    }
+
+
+    float angle_final = atan(y_total/x_total);
+    float mag_final = sqrt(x_total*x_total + y_total*y_total);
+
+    interpolation_result_t result;
+    result.position = angle_final / (PI/2.0);
+    result.pressure = mag_final;
+
+    return result;
 }
 
 int main(void)
@@ -189,6 +215,11 @@ int main(void)
 
   /* USER CODE END 2 */
 
+  float nerp = 0.5;
+  float derp = 0.25;
+  float herp = nerp*derp;
+  printf("%f\n", herp);
+
   /* Infinite loop */
 
   printf("Starting main loop\n");
@@ -214,6 +245,19 @@ int main(void)
              "Y1=%d\n"
              "Y2=%d\n"
              "Y3=%d\n", y1, y2, y3);
+
+      float values_x[4] = {x1, x2, x3, x4};
+      float values_y[3] = {y1, y2, y3};
+
+      interpolation_result_t interp_x = interpolate_touch_values(values_x, TOUCH_SIZE_X);
+      interpolation_result_t interp_y = interpolate_touch_values(values_y, TOUCH_SIZE_Y);
+
+      float pressure_final = sqrt(interp_x.pressure*interp_x.pressure + interp_y.pressure+interp_y.pressure);
+
+      printf("** INTERPOLATE **\n"
+             "X=%f\n"
+             "Y=%f\n"
+             "P=%f\n", interp_x.position, interp_y.position, pressure_final);
 
       HAL_Delay(300);
 
