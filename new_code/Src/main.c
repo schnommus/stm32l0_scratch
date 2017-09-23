@@ -83,25 +83,27 @@ typedef struct _touch_pad {
     uint32_t channel_io;
     uint32_t sample_io;
     uint32_t sample_group;
-    int32_t calibration;
+    int32_t calibration_no_touch;
+    int32_t calibration_touch;
 } touch_pad_t;
 
 touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
     // X PADS
-    {TSC_GROUP1_IO2, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 2305}, // 2 diamonds closest to chip (x1)
-    {TSC_GROUP1_IO3, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 2154}, // (x2)
-    {TSC_GROUP1_IO4, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 2313}, // (x3)
-    {TSC_GROUP2_IO2, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 1928}, // 2 diamonds closest to end (x4)
+    {TSC_GROUP1_IO2, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 2305, 400}, // 2 diamonds closest to chip (x1)
+    {TSC_GROUP1_IO3, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 2154, 400}, // (x2)
+    {TSC_GROUP1_IO4, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 2313, 400}, // (x3)
+    {TSC_GROUP2_IO2, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 1928, 450}, // 2 diamonds closest to end (x4)
     // Y PADS
-    {TSC_GROUP2_IO3, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 2353}, // Y, LED side (y1)
-    {TSC_GROUP2_IO4, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 1866}, // (y2)
-    {TSC_GROUP4_IO2, TSC_GROUP4_IO1, TSC_GROUP4_IDX, 5476}, // Y, Switch side (y3)
+    {TSC_GROUP2_IO3, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 2353, 660}, // Y, LED side (y1)
+    {TSC_GROUP2_IO4, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 1866, 420}, // (y2)
+    {TSC_GROUP4_IO2, TSC_GROUP4_IO1, TSC_GROUP4_IDX, 5476, 1500}, // Y, Switch side (y3)
 };
 
 #define SAMPLE_X 0
 #define SAMPLE_Y 1
 
 // Index is 0 for first pad at that index
+// Return in range 1 to 100
 int sample_touch_at (int index, int what_to_sample) {
 
     if(what_to_sample == SAMPLE_X) {
@@ -142,7 +144,13 @@ int sample_touch_at (int index, int what_to_sample) {
     if( HAL_TSC_GroupGetStatus(&htsc, touch_matrix[index].sample_group)
             == TSC_GROUP_COMPLETED) {
         int v = HAL_TSC_GroupGetValue(&htsc, touch_matrix[index].sample_group);
-        return touch_matrix[index].calibration - v;
+        // Scale from 1 - 100
+        v = touch_matrix[index].calibration_no_touch - v;
+        int w = touch_matrix[index].calibration_no_touch - touch_matrix[index].calibration_touch;
+        v = (100*v) / w;
+        if( v > 100 ) v = 100;
+        if( v < 1 ) v = 1;
+        return v;
     }
 
     printf("Touch read didn't complete?");
@@ -234,6 +242,7 @@ int main(void)
       int y2 = sample_touch_at(1, SAMPLE_Y);
       int y3 = sample_touch_at(2, SAMPLE_Y);
 
+/*
       // TOUCH SCREEN TEST
       printf("** READ TOUCHPAD **\n");
       printf("  X PADS\n");
@@ -245,6 +254,7 @@ int main(void)
              "Y1=%d\n"
              "Y2=%d\n"
              "Y3=%d\n", y1, y2, y3);
+             */
 
       float values_x[4] = {x1, x2, x3, x4};
       float values_y[3] = {y1, y2, y3};
@@ -254,12 +264,15 @@ int main(void)
 
       float pressure_final = sqrt(interp_x.pressure*interp_x.pressure + interp_y.pressure+interp_y.pressure);
 
+      printf("X=%f, Y=%f, P=%f\n", interp_x.position, interp_y.position, pressure_final);
+/*
       printf("** INTERPOLATE **\n"
              "X=%f\n"
              "Y=%f\n"
              "P=%f\n", interp_x.position, interp_y.position, pressure_final);
+             */
 
-      HAL_Delay(300);
+      //HAL_Delay(500);
 
   }
   /* USER CODE END 3 */
@@ -417,10 +430,10 @@ static void MX_TSC_Init(void)
   htsc.Instance = TSC;
   htsc.Init.CTPulseHighLength = TSC_CTPH_2CYCLES;
   htsc.Init.CTPulseLowLength = TSC_CTPL_2CYCLES;
-  htsc.Init.SpreadSpectrum = DISABLE;
+  htsc.Init.SpreadSpectrum = ENABLE;
   htsc.Init.SpreadSpectrumDeviation = 1;
   htsc.Init.SpreadSpectrumPrescaler = TSC_SS_PRESC_DIV1;
-  htsc.Init.PulseGeneratorPrescaler = TSC_PG_PRESC_DIV8;
+  htsc.Init.PulseGeneratorPrescaler = TSC_PG_PRESC_DIV2;
   htsc.Init.MaxCountValue = TSC_MCV_8191;
   htsc.Init.IODefaultMode = TSC_IODEF_OUT_PP_LOW;
   htsc.Init.SynchroPinPolarity = TSC_SYNC_POLARITY_FALLING;
