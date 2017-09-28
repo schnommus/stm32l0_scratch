@@ -102,16 +102,6 @@ touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
 #define SAMPLE_X 0
 #define SAMPLE_Y 1
 
-static void delay_us(uint32_t microSecond)
-{
-  /* Compute number of CPU cycles to wait for */
-  uint32_t waitLoopIndex = (microSecond * (SystemCoreClock / 1000000U));
-
-  while(waitLoopIndex != 0U) {
-    waitLoopIndex--;
-  }
-}
-
 // Index is 0 for first pad at that index
 // Return in range 1 to 100
 int sample_touch_at (int index, int what_to_sample) {
@@ -168,33 +158,62 @@ int sample_touch_at (int index, int what_to_sample) {
     return -1;
 }
 
+// Takes an integer from 0 to 512 (should represent 000 to 5.12)
+// Returns a value from 1 to 99 (1 corresponds to 0 degrees, 99 corresponds to 90 degrees)
+// The output is scaled as that's what the interpolation needs
+int fast_dodgy_atan(int x) {
+    static const uint8_t atan_lut[512] = {1,1,2,3,4,4,5,6,6,7,8,9,9,10,11,11,12,13,14,14,15,16,16,17,18,18,19,20,20,21,22,22,23,24,24,25,25,26,27,27,28,29,29,30,30,31,32,32,33,33,34,34,35,36,36,37,37,38,38,39,39,40,40,41,41,42,42,43,43,44,44,45,45,46,46,47,47,48,48,49,49,49,50,50,51,51,52,52,52,53,53,54,54,54,55,55,55,56,56,56,57,57,58,58,58,59,59,59,60,60,60,61,61,61,62,62,62,62,63,63,63,64,64,64,64,65,65,65,66,66,66,66,67,67,67,67,68,68,68,68,69,69,69,69,70,70,70,70,70,71,71,71,71,72,72,72,72,72,73,73,73,73,73,74,74,74,74,74,75,75,75,75,75,75,76,76,76,76,76,77,77,77,77,77,77,78,78,78,78,78,78,78,79,79,79,79,79,79,80,80,80,80,80,80,80,80,81,81,81,81,81,81,81,82,82,82,82,82,82,82,82,83,83,83,83,83,83,83,83,83,84,84,84,84,84,84,84,84,84,85,85,85,85,85,85,85,85,85,86,86,86,86,86,86,86,86,86,86,86,87,87,87,87,87,87,87,87,87,87,87,88,88,88,88,88,88,88,88,88,88,88,88,89,89,89,89,89,89,89,89,89,89,89,89,89,90,90,90,90,90,90,90,90,90,90,90,90,90,90,91,91,91,91,91,91,91,91,91,91,91,91,91,91,91,92,92,92,92,92,92,92,92,92,92,92,92,92,92,92,92,92,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99};
+
+    if( x > 511 ) x = 511;
+    if( x < 0 ) x = 0;
+
+    return atan_lut[x];
+}
+
 typedef struct _interpolation_result {
-    float position;
-    float pressure;
+    int position;
+    int pressure;
 } interpolation_result_t;
 
-#define PI 3.1415926535
-
 // Takes individual pressure values
-// Translates into a position (from 0.0 to 1.0) and a touch pressure
+// Translates into a position (from 0 to 100) and a touch pressure
 // (Note the position may not be especially meaningful for low pressures!)
-interpolation_result_t interpolate_touch_values(float *values, int n_values) {
-    float x_total = 0, y_total = 0;
+interpolation_result_t interpolate_touch_values_x(int *values) {
+    int x_total = 0, y_total = 0;
 
-    for(int i = 0; i != n_values; ++i) {
-        // Vary this_angle from 0 - pi/2, so we don't need atan2.
-        float this_angle = PI*0.5*((float)i)/((float)n_values-1.0);
-        x_total += values[i]*cos(this_angle);
-        y_total += values[i]*sin(this_angle);
-    }
+    // Create a vector sum, such that final vector angle will
+    // correspond to the interpolated position
 
-
-    float angle_final = atan(y_total/x_total);
-    float mag_final = sqrt(x_total*x_total + y_total*y_total);
+    x_total += values[0]*100;
+    // sin(0)=0
+    x_total += values[1]*87;
+    y_total += values[1]*50;
+    x_total += values[2]*50;
+    y_total += values[2]*87;
+    y_total += values[3]*100;
+    // cos(90)=0
 
     interpolation_result_t result;
-    result.position = angle_final / (PI/2.0);
-    result.pressure = mag_final;
+    result.position = fast_dodgy_atan((100*y_total)/x_total);
+
+    result.pressure = x_total*x_total + y_total*y_total;
+
+    return result;
+}
+
+interpolation_result_t interpolate_touch_values_y(int *values) {
+    int x_total = 0, y_total = 0;
+
+    x_total += values[0]*100;
+    // sin(0)=0
+    x_total += values[1]*71;
+    y_total += values[1]*71;
+    y_total += values[2]*100;
+    // cos(90)=0
+
+    interpolation_result_t result;
+    result.position = fast_dodgy_atan((100*y_total)/x_total);
+    result.pressure = x_total*x_total + y_total*y_total;
 
     return result;
 }
@@ -258,26 +277,27 @@ int main(void)
         int y2 = sample_touch_at(1, SAMPLE_Y);
         int y3 = sample_touch_at(2, SAMPLE_Y);
 
-        float values_x[4] = {x1, x2, x3, x4};
-        float values_y[3] = {y1, y2, y3};
+        int values_x[4] = {x1, x2, x3, x4};
+        int values_y[3] = {y1, y2, y3};
 
-        interpolation_result_t interp_x = interpolate_touch_values(values_x, TOUCH_SIZE_X);
-        interpolation_result_t interp_y = interpolate_touch_values(values_y, TOUCH_SIZE_Y);
+        interpolation_result_t interp_x = interpolate_touch_values_x(values_x);
+        interpolation_result_t interp_y = interpolate_touch_values_y(values_y);
 
-        float pressure_final = sqrt(interp_x.pressure*interp_x.pressure + interp_y.pressure+interp_y.pressure);
+        int pressure_final = (interp_x.pressure + interp_y.pressure)/10000;
 
-        //printf("X=%5.3f, Y=%5.3f, P=%6.1f\n", interp_x.position, interp_y.position, pressure_final);
+        printf("X=%03d Y=%03d P=%05d\n", interp_x.position, interp_y.position, pressure_final);
 
 
         // Take 5 secs worth of readings
         if( HAL_GetTick() - tickStart > 5000 ) {
 
-            //continue
+            continue;
 
             printf("Did %d iterations in 5s = %f it/sec\n", nIterations, (float)nIterations/5.0);
             printf("** SAMPLE **\n");
             printf("X1=%03d X2=%03d X3=%03d X4=%03d\n", x1, x2, x3, x4 );
             printf("Y1=%03d Y2=%03d Y3=%03d\n", y1, y2, y3);
+            printf("X=%03d Y=%03d P=%05d\n", interp_x.position, interp_y.position, pressure_final);
             //printf("X=%5.3f, Y=%5.3f, P=%6.1f\n", interp_x.position, interp_y.position, pressure_final);
 
             break;
