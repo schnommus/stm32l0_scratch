@@ -52,18 +52,24 @@ TSC_HandleTypeDef htsc;
 
 UART_HandleTypeDef huart1;
 
+TIM_HandleTypeDef htim2;
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
+
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TSC_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM2_Init(void);
+
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -73,6 +79,22 @@ static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
+
+#define RED_CHANNEL TIM_CHANNEL_2
+#define GREEN_CHANNEL TIM_CHANNEL_3
+#define BLUE_CHANNEL TIM_CHANNEL_4
+
+// 'Channel' is one of the above options
+// 'Value' is between 0-255
+void set_led_brightness(uint32_t channel, uint8_t value) {
+      TIM_OC_InitTypeDef sConfigOC;
+      sConfigOC.OCMode = TIM_OCMODE_PWM1;
+      sConfigOC.Pulse = value;
+      sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW; // Reverse polarity here so high values=bright
+      sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+      HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, channel);
+      HAL_TIM_PWM_Start(&htim2, channel);
+}
 
 int main(void)
 {
@@ -103,6 +125,7 @@ int main(void)
   MX_I2C1_Init();
   MX_TSC_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
 
   /* USER CODE BEGIN 2 */
 
@@ -112,27 +135,28 @@ int main(void)
 
   HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_SET);
 
-  HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-  HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
-
   printf("Starting main loop\n");
 
   int try_to_turn_off = 0;
+
+  set_led_brightness(RED_CHANNEL, 0);
+  set_led_brightness(GREEN_CHANNEL, 0);
+  set_led_brightness(BLUE_CHANNEL, 0);
 
   while (1) {
       if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
           try_to_turn_off = 1;
       }
-      HAL_Delay(200);
-      HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
-      HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-      HAL_Delay(200);
-      HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-      HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
-      HAL_Delay(200);
-      HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
-      HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
-      printf("Toggling LED... :D\n");
+
+      set_led_brightness(BLUE_CHANNEL, 0);
+      set_led_brightness(RED_CHANNEL, 30);
+      HAL_Delay(150);
+      set_led_brightness(RED_CHANNEL, 0);
+      set_led_brightness(GREEN_CHANNEL, 30);
+      HAL_Delay(150);
+      set_led_brightness(GREEN_CHANNEL, 0);
+      set_led_brightness(BLUE_CHANNEL, 30);
+      HAL_Delay(150);
 
       if(try_to_turn_off && HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
           break;
@@ -141,8 +165,11 @@ int main(void)
       try_to_turn_off = 0;
   }
 
-  HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
-  HAL_Delay(1000);
+  set_led_brightness(RED_CHANNEL, 0);
+  set_led_brightness(GREEN_CHANNEL, 0);
+  set_led_brightness(BLUE_CHANNEL, 0);
+
+
   HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_RESET);
   // Power is cut here ^
   HAL_Delay(1000);
@@ -292,6 +319,65 @@ static void MX_I2C1_Init(void)
 
 }
 
+/* TIM2 init function */
+static void MX_TIM2_Init(void)
+{
+
+  TIM_ClockConfigTypeDef sClockSourceConfig;
+  TIM_MasterConfigTypeDef sMasterConfig;
+  TIM_OC_InitTypeDef sConfigOC;
+
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 0xFF;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  HAL_TIM_MspPostInit(&htim2);
+
+}
+
 /* TSC init function */
 static void MX_TSC_Init(void)
 {
@@ -341,13 +427,6 @@ static void MX_USART1_UART_Init(void)
 
 }
 
-/** Configure pins as 
-        * Analog 
-        * Input 
-        * Output
-        * EVENT_OUT
-        * EXTI
-*/
 static void MX_GPIO_Init(void)
 {
 
@@ -358,14 +437,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LED_GREEN_Pin|LED_BLUE_Pin|PWR_LATCH_Pin|LED_RED_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pins : LED_GREEN_Pin LED_BLUE_Pin PWR_LATCH_Pin LED_RED_Pin */
-  GPIO_InitStruct.Pin = LED_GREEN_Pin|LED_BLUE_Pin|PWR_LATCH_Pin|LED_RED_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PWR_BUTTON_Pin */
   GPIO_InitStruct.Pin = PWR_BUTTON_Pin;
@@ -373,7 +445,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(PWR_BUTTON_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PWR_LATCH_Pin */
+  GPIO_InitStruct.Pin = PWR_LATCH_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(PWR_LATCH_GPIO_Port, &GPIO_InitStruct);
+
 }
+
 
 /* USER CODE BEGIN 4 */
 
