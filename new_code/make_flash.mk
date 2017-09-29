@@ -107,6 +107,8 @@ CPU = -mcpu=cortex-m0plus
 # NONE for Cortex-M0/M0+/M3
 
 # float-abi
+FLOAT-ABI = -mfloat-abi=soft
+
 
 
 # mcu
