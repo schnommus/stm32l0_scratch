@@ -125,6 +125,9 @@ touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
 #define SAMPLE_X 0
 #define SAMPLE_Y 1
 
+#define COMMAND_START       0xFD
+#define COMMAND_MOUSE_TYPE  0x02
+
 // Index is 0 for first pad at that index
 // Return in range 1 to 100
 int sample_touch_at (int index, int what_to_sample) {
@@ -241,6 +244,35 @@ interpolation_result_t interpolate_touch_values_y(int *values) {
     return result;
 }
 
+#define MOUSE_BUTTON_LEFT   (uint8_t)1
+#define MOUSE_BUTTON_RIGHT  (uint8_t)(1 << 1)
+
+void issue_hid_mouse_command(int8_t x_move, int8_t y_move, int8_t scroll, uint8_t buttons) {
+
+    /*
+     * BUTTONS = bitmask
+     *  LSB = LEFT CLICK (LATCHES TO PRESSED)
+     *  2nd to LSB = RIGHT CLICK (LATCHES TO PRESSED)
+     * x_move is 8-bit 2-s complement relative movement
+     * y_move is 8-bit 2-s complement relative movement
+     * scroll is 8-bit 2-s complement relative movement
+     */
+
+    uint8_t hid_command[] = {
+        COMMAND_START,
+        5, // Rest of command length
+        COMMAND_MOUSE_TYPE,
+        (uint8_t) buttons,
+        (uint8_t) x_move,
+        (uint8_t) y_move,
+        (uint8_t) scroll,
+    };
+
+    // Assumes total command length of 7
+    HAL_UART_Transmit(&huart1, &hid_command, sizeof(hid_command), 100);
+}
+
+
 #define PWROFF_PUSHTIME_MS 1000
 #define MODESWITCH_PUSHTIME_MS 100
 
@@ -287,9 +319,7 @@ int main(void)
 
     while (1) {
 
-        char *s = "ForkYou\n";
-
-        HAL_UART_Transmit(&huart1, s, strlen(s), 100);
+        issue_hid_mouse_command( -10 + 20*(HAL_GetTick()%2), 0, 0 ,0);
 
         int x1 = sample_touch_at(0, SAMPLE_X);
         int x2 = sample_touch_at(1, SAMPLE_X);

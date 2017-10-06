@@ -1,0 +1,33 @@
+Ver 6.15 04/26/2013
+(c) Roving Networks
+***Settings***
+BTA=201705159270
+BTName=SmartFork-9270
+Baudrt(SW4)=115K
+Mode  =DTR 
+Authen=1
+PinCod=1234
+Bonded=0
+Rem=000000000000
+***ADVANCED Settings***
+SrvName= Keyboard/Mouse
+SrvClass=0000
+DevClass=1F00
+InqWindw=0012
+PagWindw=0012
+CfgTimer=255
+StatuStr=NULL
+HidFlags=3c
+DTRtimer=8
+KeySwapr=0
+***OTHER Settings***
+Profile= HID
+CfgChar= $
+SniffEna=40
+LowPower=0
+TX Power=fff4
+IOPorts= 0
+IOValues=0
+Sleeptmr=0
+DebugMod=0
+RoleSwch=0
