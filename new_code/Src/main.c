@@ -40,6 +40,7 @@
 #include "stm32l0xx_hal.h"
 
 #include <math.h>
+#include <string.h>
 
 /* USER CODE BEGIN Includes */
 
@@ -285,6 +286,10 @@ int main(void)
     int current_mode = 0;
 
     while (1) {
+
+        char *s = "ForkYou\n";
+
+        HAL_UART_Transmit(&huart1, s, strlen(s), 100);
 
         int x1 = sample_touch_at(0, SAMPLE_X);
         int x2 = sample_touch_at(1, SAMPLE_X);
@@ -582,7 +587,7 @@ static void MX_USART1_UART_Init(void)
 
     huart1.Instance = USART1;
     huart1.Init.BaudRate = 115200;
-    huart1.Init.WordLength = UART_WORDLENGTH_7B;
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
     huart1.Init.StopBits = UART_STOPBITS_1;
     huart1.Init.Parity = UART_PARITY_NONE;
     huart1.Init.Mode = UART_MODE_TX_RX;
