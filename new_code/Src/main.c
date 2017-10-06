@@ -272,6 +272,11 @@ void issue_hid_mouse_command(int8_t x_move, int8_t y_move, int8_t scroll, uint8_
     HAL_UART_Transmit(&huart1, &hid_command, sizeof(hid_command), 100);
 }
 
+void bt_send_cmd(char *s) {
+    HAL_UART_Transmit(&huart1, s, strlen(s), 100);
+    HAL_Delay(500);
+}
+
 
 #define PWROFF_PUSHTIME_MS 1000
 #define MODESWITCH_PUSHTIME_MS 100
@@ -316,10 +321,32 @@ int main(void)
     int tickLastNotPressed = tickStart;
 
     int current_mode = 0;
+/*
+    printf("**PROGRAMMING RN-42 MODULE**\n");
+
+    HAL_Delay(2000);
+
+    bt_send_cmd("$$$");
+    bt_send_cmd("SF,1\r");
+    bt_send_cmd("S-,SmartFork\r");
+    bt_send_cmd("SN,SmartFork\r");
+    bt_send_cmd("SS,Keyboard/Mouse\r");
+    bt_send_cmd("SM,4\r");
+    bt_send_cmd("S~,6\r");
+    bt_send_cmd("SH,003C\r");
+    bt_send_cmd("SY,FFF4\r");
+    bt_send_cmd("SW,0040\r");
+    bt_send_cmd("SI,0012\r");
+    bt_send_cmd("SJ,0012\r");
+    bt_send_cmd("R,1\r");
+
+    printf("**FINISHED PROGRAMMING RN-42 MODULE**\n");
+    */
+
+    int last_x = 0;
+    int last_y = 0;
 
     while (1) {
-
-        issue_hid_mouse_command( -10 + 20*(HAL_GetTick()%2), 0, 0 ,0);
 
         int x1 = sample_touch_at(0, SAMPLE_X);
         int x2 = sample_touch_at(1, SAMPLE_X);
@@ -351,6 +378,16 @@ int main(void)
         }
 
         printf("X=%03d Y=%03d P=%05d\n", interp_x.position, interp_y.position, pressure_final);
+
+        int8_t dx = interp_x.position - last_x;
+        int8_t dy = interp_y.position - last_y;
+
+        if(pressure_final > 4000) {
+            issue_hid_mouse_command( -dy, -dx*3, 0 ,0);
+        }
+
+        last_x = interp_x.position;
+        last_y = interp_y.position;
 
         // Turn off logic, if power button is held down for longer than specific time
         if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
