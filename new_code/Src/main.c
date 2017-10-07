@@ -277,6 +277,10 @@ void bt_send_cmd(char *s) {
     HAL_Delay(500);
 }
 
+void bt_send(char *s) {
+    HAL_UART_Transmit(&huart1, s, strlen(s), 100);
+}
+
 
 #define PWROFF_PUSHTIME_MS 1000
 #define MODESWITCH_PUSHTIME_MS 100
@@ -288,6 +292,8 @@ enum modes {
     // Insert extra modes here
     MODE_N
 };
+
+#define N_AV 5
 
 int main(void)
 {
@@ -321,7 +327,8 @@ int main(void)
     int tickLastNotPressed = tickStart;
 
     int current_mode = 0;
-/*
+
+    /*
     printf("**PROGRAMMING RN-42 MODULE**\n");
 
     HAL_Delay(2000);
@@ -338,13 +345,18 @@ int main(void)
     bt_send_cmd("SW,0040\r");
     bt_send_cmd("SI,0012\r");
     bt_send_cmd("SJ,0012\r");
-    bt_send_cmd("R,1\r");
+    bt_send_cmd("x\r");
 
     printf("**FINISHED PROGRAMMING RN-42 MODULE**\n");
     */
 
     int last_x = 0;
     int last_y = 0;
+
+    int averages[N_AV];
+    int index = 0;
+
+    int previously_pressed = 0;
 
     while (1) {
 
@@ -380,14 +392,34 @@ int main(void)
         printf("X=%03d Y=%03d P=%05d\n", interp_x.position, interp_y.position, pressure_final);
 
         int8_t dx = interp_x.position - last_x;
-        int8_t dy = interp_y.position - last_y;
+        //int8_t dy = interp_y.position - last_y;
+
+        averages[index] = dx;
+
+        ++index;
+        if(index >= N_AV) index = 0;
+
+        int sum = 0;
+        for(int i = 0; i != N_AV; ++i) {
+            sum += averages[i];
+        }
+
+        // Just been pressed
+        if(previously_pressed == 0 && pressure_final > 4000) {
+            for(int i = 0; i != N_AV; ++i) {
+                averages[i] = 0;
+            }
+            sum = 0;
+        }
 
         if(pressure_final > 4000) {
-            issue_hid_mouse_command( -dy, -dx*3, 0 ,0);
+            issue_hid_mouse_command( 0, -sum/2, 0 ,0);
         }
 
         last_x = interp_x.position;
         last_y = interp_y.position;
+
+        previously_pressed = (pressure_final > 4000);
 
         // Turn off logic, if power button is held down for longer than specific time
         if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
