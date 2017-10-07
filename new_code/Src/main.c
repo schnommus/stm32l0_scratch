@@ -342,7 +342,7 @@ int main(void)
     bt_send_cmd("S~,6\r");
     bt_send_cmd("SH,003C\r");
     bt_send_cmd("SY,FFF4\r");
-    bt_send_cmd("SW,0040\r");
+    bt_send_cmd("SW,0020\r");
     bt_send_cmd("SI,0012\r");
     bt_send_cmd("SJ,0012\r");
     bt_send_cmd("x\r");
@@ -353,10 +353,14 @@ int main(void)
     int last_x = 0;
     int last_y = 0;
 
-    int averages[N_AV];
-    int index = 0;
+    int averages_x[N_AV];
+    int index_x = 0;
+    int averages_y[N_AV];
+    int index_y = 0;
 
     int previously_pressed = 0;
+
+    int pressTick = 0;
 
     while (1) {
 
@@ -392,28 +396,56 @@ int main(void)
         printf("X=%03d Y=%03d P=%05d\n", interp_x.position, interp_y.position, pressure_final);
 
         int8_t dx = interp_x.position - last_x;
-        //int8_t dy = interp_y.position - last_y;
+        int8_t dy = interp_y.position - last_y;
 
-        averages[index] = dx;
+        averages_x[index_x] = dx;
+        averages_y[index_y] = dy;
 
-        ++index;
-        if(index >= N_AV) index = 0;
+        ++index_x;
+        if(index_x >= N_AV) index_x = 0;
+        ++index_y;
+        if(index_y >= N_AV) index_y = 0;
 
-        int sum = 0;
+        int sum_x = 0;
+        int sum_y = 0;
         for(int i = 0; i != N_AV; ++i) {
-            sum += averages[i];
+            sum_x += averages_x[i];
+            sum_y += averages_y[i];
         }
 
+        int justPressed = 0;
+        int justReleased = 0;
         // Just been pressed
         if(previously_pressed == 0 && pressure_final > 4000) {
-            for(int i = 0; i != N_AV; ++i) {
-                averages[i] = 0;
-            }
-            sum = 0;
+            justPressed = 1;
+            pressTick = HAL_GetTick();
+        }
+        if(previously_pressed == 1 && pressure_final < 2000) {
+            justReleased = 1;
         }
 
-        if(pressure_final > 4000) {
-            issue_hid_mouse_command( 0, -sum/2, 0 ,0);
+        if(justPressed) {
+            for(int i = 0; i != N_AV; ++i) {
+                averages_x[i] = 0;
+                averages_y[i] = 0;
+            }
+            sum_x = sum_y = 0;
+        }
+
+        {
+            int move1 = -sum_y/4;
+            int move2 = -sum_x/2;
+            int buttons = 0;
+
+            if(justPressed || pressure_final < 4000) {
+                move1 = move2 = 0;
+            }
+
+            if(justReleased && HAL_GetTick() - pressTick < 100) {
+                buttons = MOUSE_BUTTON_LEFT;
+            }
+
+            issue_hid_mouse_command( move1, move2, 0 , buttons);
         }
 
         last_x = interp_x.position;
