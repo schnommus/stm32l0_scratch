@@ -188,7 +188,27 @@ int sample_touch_at (int index, int what_to_sample) {
 // Returns a value from 1 to 99 (1 corresponds to 0 degrees, 99 corresponds to 90 degrees)
 // The output is scaled as that's what the interpolation needs
 int fast_dodgy_atan(int x) {
-    static const uint8_t atan_lut[512] = {1,1,2,3,4,4,5,6,6,7,8,9,9,10,11,11,12,13,14,14,15,16,16,17,18,18,19,20,20,21,22,22,23,24,24,25,25,26,27,27,28,29,29,30,30,31,32,32,33,33,34,34,35,36,36,37,37,38,38,39,39,40,40,41,41,42,42,43,43,44,44,45,45,46,46,47,47,48,48,49,49,49,50,50,51,51,52,52,52,53,53,54,54,54,55,55,55,56,56,56,57,57,58,58,58,59,59,59,60,60,60,61,61,61,62,62,62,62,63,63,63,64,64,64,64,65,65,65,66,66,66,66,67,67,67,67,68,68,68,68,69,69,69,69,70,70,70,70,70,71,71,71,71,72,72,72,72,72,73,73,73,73,73,74,74,74,74,74,75,75,75,75,75,75,76,76,76,76,76,77,77,77,77,77,77,78,78,78,78,78,78,78,79,79,79,79,79,79,80,80,80,80,80,80,80,80,81,81,81,81,81,81,81,82,82,82,82,82,82,82,82,83,83,83,83,83,83,83,83,83,84,84,84,84,84,84,84,84,84,85,85,85,85,85,85,85,85,85,86,86,86,86,86,86,86,86,86,86,86,87,87,87,87,87,87,87,87,87,87,87,88,88,88,88,88,88,88,88,88,88,88,88,89,89,89,89,89,89,89,89,89,89,89,89,89,90,90,90,90,90,90,90,90,90,90,90,90,90,90,91,91,91,91,91,91,91,91,91,91,91,91,91,91,91,92,92,92,92,92,92,92,92,92,92,92,92,92,92,92,92,92,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99};
+
+    static const uint8_t atan_lut[512] =
+        {1,1,2,3,4,4,5,6,6,7,8,9,9,10,11,11,12,13,14,14,15,16,16,17,18,18,19,20,20,21,22,22,
+         23,24,24,25,25,26,27,27,28,29,29,30,30,31,32,32,33,33,34,34,35,36,36,37,37,38,38,39,
+         39,40,40,41,41,42,42,43,43,44,44,45,45,46,46,47,47,48,48,49,49,49,50,50,51,51,52,52,
+         52,53,53,54,54,54,55,55,55,56,56,56,57,57,58,58,58,59,59,59,60,60,60,61,61,61,62,62,
+         62,62,63,63,63,64,64,64,64,65,65,65,66,66,66,66,67,67,67,67,68,68,68,68,69,69,69,69,
+         70,70,70,70,70,71,71,71,71,72,72,72,72,72,73,73,73,73,73,74,74,74,74,74,75,75,75,75,
+         75,75,76,76,76,76,76,77,77,77,77,77,77,78,78,78,78,78,78,78,79,79,79,79,79,79,80,80,
+         80,80,80,80,80,80,81,81,81,81,81,81,81,82,82,82,82,82,82,82,82,83,83,83,83,83,83,83,
+         83,83,84,84,84,84,84,84,84,84,84,85,85,85,85,85,85,85,85,85,86,86,86,86,86,86,86,86,
+         86,86,86,87,87,87,87,87,87,87,87,87,87,87,88,88,88,88,88,88,88,88,88,88,88,88,89,89,
+         89,89,89,89,89,89,89,89,89,89,89,90,90,90,90,90,90,90,90,90,90,90,90,90,90,91,91,91,
+         91,91,91,91,91,91,91,91,91,91,91,91,92,92,92,92,92,92,92,92,92,92,92,92,92,92,92,92,
+         92,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,94,94,94,94,94,94,94,94,94,
+         94,94,94,94,94,94,94,94,94,94,94,94,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,95,
+         95,95,95,95,95,95,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,96,
+         96,96,96,96,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,
+         97,97,97,97,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,98,
+         98,98,98,98,98,98,98,98,98,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+         99,99,99,99};
 
     if( x > 511 ) x = 511;
     if( x < 0 ) x = 0;
@@ -244,6 +264,96 @@ interpolation_result_t interpolate_touch_values_y(int *values) {
     return result;
 }
 
+typedef struct _average_result {
+    int x;
+    int y;
+} average_result_t;
+
+#define N_AV 5
+
+average_result_t average_deltas(int x_now, int y_now, int justPressed) {
+
+
+    static int last_x = 0;
+    static int last_y = 0;
+
+    static int averages_x[N_AV];
+    static int averages_y[N_AV];
+
+    static int index_x = 0;
+    static int index_y = 0;
+
+    int8_t dx = x_now - last_x;
+    int8_t dy = y_now - last_y;
+
+    averages_x[index_x] = dx;
+    averages_y[index_y] = dy;
+
+    ++index_x;
+    ++index_y;
+    if(index_x >= N_AV) index_x = 0;
+    if(index_y >= N_AV) index_y = 0;
+
+    // Create a rolling average
+    int sum_x = 0;
+    int sum_y = 0;
+    for(int i = 0; i != N_AV; ++i) {
+        sum_x += averages_x[i];
+        sum_y += averages_y[i];
+    }
+
+    // Quench instantaneous movement on a press
+    if(justPressed) {
+        for(int i = 0; i != N_AV; ++i) {
+            averages_x[i] = 0;
+            averages_y[i] = 0;
+        }
+        sum_x = sum_y = 0;
+    }
+
+    last_x = x_now;
+    last_y = y_now;
+
+    average_result_t result = {sum_x, sum_y};
+
+    return result;
+}
+
+typedef struct _press_result {
+    int just_pressed;
+    int just_released;
+    int just_tapped;
+    int currently_pressed;
+} press_result_t;
+
+press_result_t track_presses(int current_pressure) {
+
+    static int previously_pressed = 0;
+    static int ticks_when_pressed = 0;
+
+    press_result_t result = {0, 0, 0, 0};
+
+    result.currently_pressed = current_pressure > 4000;
+
+    if(previously_pressed == 0 && current_pressure > 4000) {
+        result.just_pressed = 1;
+        ticks_when_pressed = HAL_GetTick();
+    }
+
+    // Bit of hysteresis here
+    if(previously_pressed == 1 && current_pressure < 2000) {
+        result.just_released = 1;
+    }
+
+    if(result.just_released && HAL_GetTick() - ticks_when_pressed < 100) {
+        result.just_tapped = 1;
+    }
+
+    previously_pressed = (current_pressure > 4000);
+
+    return result;
+}
+
 #define MOUSE_BUTTON_LEFT   (uint8_t)1
 #define MOUSE_BUTTON_RIGHT  (uint8_t)(1 << 1)
 
@@ -269,18 +379,90 @@ void issue_hid_mouse_command(int8_t x_move, int8_t y_move, int8_t scroll, uint8_
     };
 
     // Assumes total command length of 7
-    HAL_UART_Transmit(&huart1, &hid_command, sizeof(hid_command), 100);
+    HAL_UART_Transmit(&huart1, (uint8_t*)&hid_command, sizeof(hid_command), 100);
+}
+
+void move_and_tap_mouse(average_result_t deltas, press_result_t presses) {
+
+    int mouse_dx = -deltas.x/4;
+    int mouse_dy = -deltas.y/2;
+    int buttons = 0;
+
+    // Ignore the movement if it's probably bogus
+    if(presses.just_pressed || !presses.currently_pressed) {
+        mouse_dx = mouse_dy = 0;
+    }
+
+    if(presses.just_tapped) {
+        buttons = MOUSE_BUTTON_LEFT;
+    }
+
+    issue_hid_mouse_command( mouse_dx, mouse_dy, 0, buttons);
 }
 
 void bt_send_cmd(char *s) {
-    HAL_UART_Transmit(&huart1, s, strlen(s), 100);
+    HAL_UART_Transmit(&huart1, (unsigned char*)s, strlen(s), 100);
     HAL_Delay(500);
 }
 
 void bt_send(char *s) {
-    HAL_UART_Transmit(&huart1, s, strlen(s), 100);
+    HAL_UART_Transmit(&huart1, (unsigned char*)s, strlen(s), 100);
 }
 
+void program_rn42_module() {
+    printf("**PROGRAMMING RN-42 MODULE**\n");
+
+    HAL_Delay(2000);
+
+    bt_send_cmd("$$$");
+    bt_send_cmd("SF,1\r");
+    bt_send_cmd("S-,SmartFork\r");
+    bt_send_cmd("SN,SmartFork\r");
+    bt_send_cmd("SS,Keyboard/Mouse\r");
+    bt_send_cmd("SM,4\r");
+    bt_send_cmd("S~,6\r");
+    bt_send_cmd("SH,003C\r");
+    bt_send_cmd("SY,FFF4\r");
+    bt_send_cmd("SW,0020\r");
+    bt_send_cmd("SI,0012\r");
+    bt_send_cmd("SJ,0012\r");
+    bt_send_cmd("x\r");
+
+    printf("**FINISHED PROGRAMMING RN-42 MODULE**\n");
+}
+
+typedef struct _touch {
+    int x;
+    int y;
+    int pressure;
+} touch_t;
+
+touch_t sample_touch() {
+
+    int x1 = sample_touch_at(0, SAMPLE_X);
+    int x2 = sample_touch_at(1, SAMPLE_X);
+    int x3 = sample_touch_at(2, SAMPLE_X);
+    int x4 = sample_touch_at(3, SAMPLE_X);
+
+    int y1 = sample_touch_at(0, SAMPLE_Y);
+    int y2 = sample_touch_at(1, SAMPLE_Y);
+    int y3 = sample_touch_at(2, SAMPLE_Y);
+
+    int values_x[4] = {x1, x2, x3, x4};
+    int values_y[3] = {y1, y2, y3};
+
+    interpolation_result_t interp_x = interpolate_touch_values_x(values_x);
+    interpolation_result_t interp_y = interpolate_touch_values_y(values_y);
+
+    int pressure_final = (interp_x.pressure + interp_y.pressure)/10000;
+
+    touch_t result;
+    result.x = interp_x.position;
+    result.y = interp_y.position;
+    result.pressure = pressure_final;
+
+    return result;
+}
 
 #define PWROFF_PUSHTIME_MS 1000
 #define MODESWITCH_PUSHTIME_MS 100
@@ -292,8 +474,6 @@ enum modes {
     // Insert extra modes here
     MODE_N
 };
-
-#define N_AV 5
 
 int main(void)
 {
@@ -324,134 +504,34 @@ int main(void)
 
     // Boot time in systicks
     int tickStart = HAL_GetTick();
-    int tickLastNotPressed = tickStart;
 
     int current_mode = 0;
 
-    /*
-    printf("**PROGRAMMING RN-42 MODULE**\n");
+    int tickLastNotPressed = tickStart;
 
-    HAL_Delay(2000);
+    while(1) {
 
-    bt_send_cmd("$$$");
-    bt_send_cmd("SF,1\r");
-    bt_send_cmd("S-,SmartFork\r");
-    bt_send_cmd("SN,SmartFork\r");
-    bt_send_cmd("SS,Keyboard/Mouse\r");
-    bt_send_cmd("SM,4\r");
-    bt_send_cmd("S~,6\r");
-    bt_send_cmd("SH,003C\r");
-    bt_send_cmd("SY,FFF4\r");
-    bt_send_cmd("SW,0020\r");
-    bt_send_cmd("SI,0012\r");
-    bt_send_cmd("SJ,0012\r");
-    bt_send_cmd("x\r");
-
-    printf("**FINISHED PROGRAMMING RN-42 MODULE**\n");
-    */
-
-    int last_x = 0;
-    int last_y = 0;
-
-    int averages_x[N_AV];
-    int index_x = 0;
-    int averages_y[N_AV];
-    int index_y = 0;
-
-    int previously_pressed = 0;
-
-    int pressTick = 0;
-
-    while (1) {
-
-        int x1 = sample_touch_at(0, SAMPLE_X);
-        int x2 = sample_touch_at(1, SAMPLE_X);
-        int x3 = sample_touch_at(2, SAMPLE_X);
-        int x4 = sample_touch_at(3, SAMPLE_X);
-
-        int y1 = sample_touch_at(0, SAMPLE_Y);
-        int y2 = sample_touch_at(1, SAMPLE_Y);
-        int y3 = sample_touch_at(2, SAMPLE_Y);
-
-        int values_x[4] = {x1, x2, x3, x4};
-        int values_y[3] = {y1, y2, y3};
-
-        interpolation_result_t interp_x = interpolate_touch_values_x(values_x);
-        interpolation_result_t interp_y = interpolate_touch_values_y(values_y);
-
-        int pressure_final = (interp_x.pressure + interp_y.pressure)/10000;
+        touch_t touch = sample_touch();
 
         switch(current_mode) {
             case MODE_DISPLAY_X:
-                set_led_brightness(RED_CHANNEL, interp_x.position/4);
+                set_led_brightness(RED_CHANNEL, touch.x/4);
             break;
             case MODE_DISPLAY_Y:
-                set_led_brightness(GREEN_CHANNEL, interp_y.position/4);
+                set_led_brightness(GREEN_CHANNEL, touch.y/4);
             break;
             case MODE_DISPLAY_PRESSURE:
-                set_led_brightness(BLUE_CHANNEL, pressure_final/2000);
+                set_led_brightness(BLUE_CHANNEL, touch.pressure/2000);
             break;
         }
 
-        printf("X=%03d Y=%03d P=%05d\n", interp_x.position, interp_y.position, pressure_final);
+        printf("X=%03d Y=%03d P=%05d\n", touch.x, touch.y, touch.pressure);
 
-        int8_t dx = interp_x.position - last_x;
-        int8_t dy = interp_y.position - last_y;
+        press_result_t presses = track_presses(touch.pressure);
 
-        averages_x[index_x] = dx;
-        averages_y[index_y] = dy;
+        average_result_t deltas = average_deltas(touch.x, touch.y, presses.just_pressed);
 
-        ++index_x;
-        if(index_x >= N_AV) index_x = 0;
-        ++index_y;
-        if(index_y >= N_AV) index_y = 0;
-
-        int sum_x = 0;
-        int sum_y = 0;
-        for(int i = 0; i != N_AV; ++i) {
-            sum_x += averages_x[i];
-            sum_y += averages_y[i];
-        }
-
-        int justPressed = 0;
-        int justReleased = 0;
-        // Just been pressed
-        if(previously_pressed == 0 && pressure_final > 4000) {
-            justPressed = 1;
-            pressTick = HAL_GetTick();
-        }
-        if(previously_pressed == 1 && pressure_final < 2000) {
-            justReleased = 1;
-        }
-
-        if(justPressed) {
-            for(int i = 0; i != N_AV; ++i) {
-                averages_x[i] = 0;
-                averages_y[i] = 0;
-            }
-            sum_x = sum_y = 0;
-        }
-
-        {
-            int move1 = -sum_y/4;
-            int move2 = -sum_x/2;
-            int buttons = 0;
-
-            if(justPressed || pressure_final < 4000) {
-                move1 = move2 = 0;
-            }
-
-            if(justReleased && HAL_GetTick() - pressTick < 100) {
-                buttons = MOUSE_BUTTON_LEFT;
-            }
-
-            issue_hid_mouse_command( move1, move2, 0 , buttons);
-        }
-
-        last_x = interp_x.position;
-        last_y = interp_y.position;
-
-        previously_pressed = (pressure_final > 4000);
+        move_and_tap_mouse(deltas, presses);
 
         // Turn off logic, if power button is held down for longer than specific time
         if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
