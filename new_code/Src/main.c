@@ -400,6 +400,18 @@ void move_and_tap_mouse(average_result_t deltas, press_result_t presses) {
     issue_hid_mouse_command( mouse_dx, mouse_dy, 0, buttons);
 }
 
+void scroll_mouse(average_result_t deltas, press_result_t presses) {
+
+    int scroll_delta = -deltas.x/4;
+
+    // Ignore the movement if it's probably bogus
+    if(presses.just_pressed || !presses.currently_pressed) {
+        scroll_delta = 0;
+    }
+
+    issue_hid_mouse_command( 0, 0, scroll_delta, 0);
+}
+
 void bt_send_cmd(char *s) {
     HAL_UART_Transmit(&huart1, (unsigned char*)s, strlen(s), 100);
     HAL_Delay(500);
@@ -464,13 +476,30 @@ touch_t sample_touch() {
     return result;
 }
 
+void rgb_cycle() {
+    set_led_brightness(RED_CHANNEL, 100);
+    set_led_brightness(BLUE_CHANNEL, 0);
+    set_led_brightness(GREEN_CHANNEL, 0);
+    HAL_Delay(50);
+    set_led_brightness(RED_CHANNEL, 0);
+    set_led_brightness(BLUE_CHANNEL, 100);
+    set_led_brightness(GREEN_CHANNEL, 0);
+    HAL_Delay(50);
+    set_led_brightness(RED_CHANNEL, 0);
+    set_led_brightness(BLUE_CHANNEL, 0);
+    set_led_brightness(GREEN_CHANNEL, 100);
+    HAL_Delay(50);
+    set_led_brightness(RED_CHANNEL, 0);
+    set_led_brightness(BLUE_CHANNEL, 0);
+    set_led_brightness(GREEN_CHANNEL, 0);
+}
+
 #define PWROFF_PUSHTIME_MS 1000
 #define MODESWITCH_PUSHTIME_MS 100
 
 enum modes {
-    MODE_DISPLAY_X = 0,
-    MODE_DISPLAY_Y,
-    MODE_DISPLAY_PRESSURE,
+    MODE_MOUSE = 0,
+    MODE_SCROLL,
     // Insert extra modes here
     MODE_N
 };
@@ -495,12 +524,14 @@ int main(void)
     // Latch power on
     HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_SET);
 
-    // All LEDs initially off
-    set_led_brightness(RED_CHANNEL, 0);
-    set_led_brightness(GREEN_CHANNEL, 0);
-    set_led_brightness(BLUE_CHANNEL, 0);
+    // Cycle LEDs to show the world we are now alive
+    for( int i = 0; i != 3; ++i ) {
+        rgb_cycle();
+    }
 
     printf("Starting main loop\n");
+
+    rgb_cycle();
 
     // Boot time in systicks
     int tickStart = HAL_GetTick();
@@ -513,25 +544,22 @@ int main(void)
 
         touch_t touch = sample_touch();
 
-        switch(current_mode) {
-            case MODE_DISPLAY_X:
-                set_led_brightness(RED_CHANNEL, touch.x/4);
-            break;
-            case MODE_DISPLAY_Y:
-                set_led_brightness(GREEN_CHANNEL, touch.y/4);
-            break;
-            case MODE_DISPLAY_PRESSURE:
-                set_led_brightness(BLUE_CHANNEL, touch.pressure/2000);
-            break;
-        }
-
         printf("X=%03d Y=%03d P=%05d\n", touch.x, touch.y, touch.pressure);
 
         press_result_t presses = track_presses(touch.pressure);
 
         average_result_t deltas = average_deltas(touch.x, touch.y, presses.just_pressed);
 
-        move_and_tap_mouse(deltas, presses);
+        switch(current_mode) {
+            case MODE_MOUSE:
+                set_led_brightness(RED_CHANNEL, 100);
+                move_and_tap_mouse(deltas, presses);
+            break;
+            case MODE_SCROLL:
+                set_led_brightness(GREEN_CHANNEL, 100);
+                scroll_mouse(deltas, presses);
+            break;
+        }
 
         // Turn off logic, if power button is held down for longer than specific time
         if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
@@ -544,19 +572,26 @@ int main(void)
                 if(current_mode >= MODE_N) {
                     current_mode = 0;
                 }
-                set_led_brightness(RED_CHANNEL, 0);
-                set_led_brightness(GREEN_CHANNEL, 0);
-                set_led_brightness(BLUE_CHANNEL, 0);
-                HAL_Delay(50);
+                rgb_cycle();
             }
             tickLastNotPressed = HAL_GetTick();
         }
     }
 
+    // Flash red to indicate shutting down
+
     set_led_brightness(RED_CHANNEL, 0);
     set_led_brightness(GREEN_CHANNEL, 0);
     set_led_brightness(BLUE_CHANNEL, 0);
 
+    set_led_brightness(RED_CHANNEL, 150);
+    HAL_Delay(100);
+    set_led_brightness(RED_CHANNEL, 0);
+    HAL_Delay(100);
+    set_led_brightness(RED_CHANNEL, 150);
+    HAL_Delay(100);
+
+    // Leave red LED on for possible fading effect
 
     HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_RESET);
     // Power is cut here ^
