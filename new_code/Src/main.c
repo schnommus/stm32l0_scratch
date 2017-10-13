@@ -414,7 +414,7 @@ void scroll_mouse(average_result_t deltas, press_result_t presses) {
 
 void bt_send_cmd(char *s) {
     HAL_UART_Transmit(&huart1, (unsigned char*)s, strlen(s), 100);
-    HAL_Delay(500);
+    HAL_Delay(250);
 }
 
 void bt_send(char *s) {
@@ -424,7 +424,7 @@ void bt_send(char *s) {
 void program_rn42_module() {
     printf("**PROGRAMMING RN-42 MODULE**\n");
 
-    HAL_Delay(2000);
+    HAL_Delay(500);
 
     bt_send_cmd("$$$");
     bt_send_cmd("SF,1\r");
@@ -434,11 +434,11 @@ void program_rn42_module() {
     bt_send_cmd("SM,4\r");
     bt_send_cmd("S~,6\r");
     bt_send_cmd("SH,003C\r");
-    bt_send_cmd("SY,FFF4\r");
-    bt_send_cmd("SW,0010\r");
+    bt_send_cmd("SY,0001\r");
+    bt_send_cmd("SW,8000\r");
     bt_send_cmd("SI,0200\r");
     bt_send_cmd("SJ,0200\r");
-    bt_send_cmd("x\r");
+    bt_send_cmd("R,1\r");
 
     printf("**FINISHED PROGRAMMING RN-42 MODULE**\n");
 }
@@ -538,7 +538,7 @@ int main(void)
     // Boot time in systicks
     int tickStart = HAL_GetTick();
 
-    int current_mode = 1;
+    int current_mode = 0;
 
     int tickLastNotPressed = tickStart;
 

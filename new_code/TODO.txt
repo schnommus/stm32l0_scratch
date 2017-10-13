@@ -2,3 +2,4 @@
 - MEDIA MODE
 - ARROW/GAME MODE (LOW PRIORITY)
 - FORM FACTOR
+- Auto poweroff after 1min
