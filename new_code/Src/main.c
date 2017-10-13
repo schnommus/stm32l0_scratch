@@ -428,16 +428,16 @@ void program_rn42_module() {
 
     bt_send_cmd("$$$");
     bt_send_cmd("SF,1\r");
-    bt_send_cmd("S-,SmartFork\r");
-    bt_send_cmd("SN,SmartFork\r");
+    bt_send_cmd("S-,SmartCutlery\r");
+    bt_send_cmd("SN,SmartCutlery\r");
     bt_send_cmd("SS,Keyboard/Mouse\r");
     bt_send_cmd("SM,4\r");
     bt_send_cmd("S~,6\r");
     bt_send_cmd("SH,003C\r");
     bt_send_cmd("SY,FFF4\r");
-    bt_send_cmd("SW,0020\r");
-    bt_send_cmd("SI,0012\r");
-    bt_send_cmd("SJ,0012\r");
+    bt_send_cmd("SW,0010\r");
+    bt_send_cmd("SI,0200\r");
+    bt_send_cmd("SJ,0200\r");
     bt_send_cmd("x\r");
 
     printf("**FINISHED PROGRAMMING RN-42 MODULE**\n");
@@ -523,6 +523,8 @@ int main(void)
 
     // Latch power on
     HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_SET);
+
+    //program_rn42_module();
 
     // Cycle LEDs to show the world we are now alive
     for( int i = 0; i != 3; ++i ) {
