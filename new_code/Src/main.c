@@ -384,7 +384,7 @@ void issue_hid_mouse_command(int8_t x_move, int8_t y_move, int8_t scroll, uint8_
 
 void move_and_tap_mouse(average_result_t deltas, press_result_t presses) {
 
-    int mouse_dx = -deltas.y/4;
+    int mouse_dx = -deltas.y/2;
     int mouse_dy = -deltas.x/2;
     int buttons = 0;
 
@@ -538,7 +538,7 @@ int main(void)
     // Boot time in systicks
     int tickStart = HAL_GetTick();
 
-    int current_mode = 0;
+    int current_mode = MODE_MOUSE;
 
     int tickLastNotPressed = tickStart;
 
