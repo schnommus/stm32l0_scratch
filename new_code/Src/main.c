@@ -439,22 +439,23 @@ void scroll_mouse(average_result_t deltas, press_result_t presses) {
     issue_hid_mouse_command( 0, 0, scroll_delta, 0);
 }
 
+#define SKIP_THRESHOLD 2
 
-void media_control(average_result_t deltas, press_result_t presses) {
+int media_control(average_result_t deltas, press_result_t presses, int cooldown_curr) {
 
 	int volume_control = deltas.x/15;
-	//int skip_control = deltas.y/15;
+	int skip_control = -deltas.y/15;
 
 	uint8_t command_low_byte = RELEASE;
 	uint8_t command_high_byte = RELEASE;
 	
+	int cooldown_start = 0;
+	
 	// Ignore the movement if it's probably bogus
     if(presses.just_pressed || !presses.currently_pressed) {
         volume_control = 0;
-        //skip_control = 0;
+        skip_control = 0;
     }
-    
-	// Key must be released after press
 	
 	// Control volume
 	if(volume_control > 0) {
@@ -465,14 +466,16 @@ void media_control(average_result_t deltas, press_result_t presses) {
 		command_high_byte = VOLUME_DOWN_HIGH_BYTE;
 	}
 	
-	/*// Control skips (NOT YET WORKING)
-	if(skip_control > 0 && !presses.just_released) {
-		issue_hid_consumer_report(NEXT_LOW_BYTE, NEXT_HIGH_BYTE);
-		issue_hid_consumer_report(RELEASE, RELEASE);
-	} else if(skip_control < 0 && !presses.just_released) {
-		issue_hid_consumer_report(PREV_LOW_BYTE, PREV_HIGH_BYTE);
-		issue_hid_consumer_report(RELEASE, RELEASE);
-	}*/
+	// Control skips
+	if(skip_control > SKIP_THRESHOLD && cooldown_curr == 0) {
+		command_low_byte = NEXT_LOW_BYTE;
+		command_high_byte = NEXT_HIGH_BYTE;
+		cooldown_start = 1;
+	} else if(skip_control < -1 * SKIP_THRESHOLD && cooldown_curr == 0) {
+		command_low_byte = PREV_LOW_BYTE;
+		command_high_byte = PREV_HIGH_BYTE;
+		cooldown_start = 1;
+	}
 	
 	// Control play/pause
 	if(presses.just_tapped) {
@@ -483,6 +486,8 @@ void media_control(average_result_t deltas, press_result_t presses) {
 	issue_hid_consumer_report(command_low_byte, command_high_byte);
 	issue_hid_consumer_report(RELEASE, RELEASE);
 	
+	return cooldown_start;
+
 }
 
 void bt_send_cmd(char *s) {
@@ -601,6 +606,14 @@ void rgb_cycle() {
 #define PWROFF_INACTIVE_TIME_MS 60000
 #define MODESWITCH_PUSHTIME_MS 100
 
+#define COOLDOWN_LENGTH 200
+
+typedef struct _timer {
+    int start;
+    int start_time;
+    int enabled;
+} timer;
+
 enum modes {
     MODE_MOUSE = 0,
     MODE_SCROLL,
@@ -642,12 +655,14 @@ int main(void)
 
     // Boot time in systicks
     int tickStart = HAL_GetTick();
-
     int current_mode = MODE_MEDIA;
-
     int lastButtonUnpressedTicks = tickStart;
-
     int lastTouchTicks = tickStart;
+    
+    // Set up cooldown timer
+    timer cooldown;
+    cooldown.enabled = 0;
+    cooldown.start_time = 0;
 
     while(1) {
 
@@ -672,12 +687,26 @@ int main(void)
             break;
             case MODE_MEDIA:
             	set_led_brightness(BLUE_CHANNEL, target_brightness);
-            	media_control(deltas, presses);
+            	cooldown.start = media_control(deltas, presses, cooldown.enabled);
             break;
         }
-
+        
+        // Manage cooldown - If started, set enable and start time
+        // If enough time passed, disable
+        if(cooldown.start) {
+        	cooldown.enabled = 1;
+        	cooldown.start = 0;
+        	cooldown.start_time = HAL_GetTick();
+        }
+        
+        if(cooldown.enabled == 1 && HAL_GetTick() - cooldown.start_time > COOLDOWN_LENGTH) {
+        	cooldown.enabled = 0;
+        	cooldown.start_time = 0;
+        }  
+        
         // If power button is held down for longer than specific time
         // turn the device off. If it is pressed for a short time, change modes.
+        
         if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
             if(HAL_GetTick() - lastButtonUnpressedTicks > PWROFF_PUSHTIME_MS) {
                 break;
