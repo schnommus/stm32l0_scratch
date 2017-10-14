@@ -451,7 +451,7 @@ typedef struct _touch {
 } touch_t;
 
 // Any pad > this will contribute to the 'ignore' count
-#define IGNORE_MIN_PRESSURE 4
+#define IGNORE_MIN_PRESSURE 500
 
 // >= 6 pads will force an ignore
 #define IGNORE_PADS 6
