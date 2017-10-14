@@ -530,7 +530,7 @@ typedef struct _touch {
 
 #define IGNORE_MIN_PRESSURE 7
 
-// >= 6 pads will force an ignore
+// > N pads will force an ignore
 #define IGNORE_PADS 6
 
 touch_t sample_touch() {
@@ -598,6 +598,7 @@ void rgb_cycle() {
 }
 
 #define PWROFF_PUSHTIME_MS 1000
+#define PWROFF_INACTIVE_TIME_MS 60000
 #define MODESWITCH_PUSHTIME_MS 100
 
 enum modes {
@@ -644,7 +645,9 @@ int main(void)
 
     int current_mode = MODE_MEDIA;
 
-    int tickLastNotPressed = tickStart;
+    int lastButtonUnpressedTicks = tickStart;
+
+    int lastTouchTicks = tickStart;
 
     while(1) {
 
@@ -666,27 +669,41 @@ int main(void)
             case MODE_SCROLL:
                 set_led_brightness(GREEN_CHANNEL, target_brightness);
                 scroll_mouse(deltas, presses);
+            break;
             case MODE_MEDIA:
             	set_led_brightness(BLUE_CHANNEL, target_brightness);
             	media_control(deltas, presses);
             break;
         }
 
-        // Turn off logic, if power button is held down for longer than specific time
+        // If power button is held down for longer than specific time
+        // turn the device off. If it is pressed for a short time, change modes.
         if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
-            if(HAL_GetTick() - tickLastNotPressed > PWROFF_PUSHTIME_MS) {
+            if(HAL_GetTick() - lastButtonUnpressedTicks > PWROFF_PUSHTIME_MS) {
                 break;
             }
         } else {
-            if(HAL_GetTick() - tickLastNotPressed > MODESWITCH_PUSHTIME_MS) {
+            if(HAL_GetTick() - lastButtonUnpressedTicks > MODESWITCH_PUSHTIME_MS) {
                 ++current_mode;
                 if(current_mode >= MODE_N) {
                     current_mode = 0;
                 }
                 rgb_cycle();
             }
-            tickLastNotPressed = HAL_GetTick();
+            lastButtonUnpressedTicks = HAL_GetTick();
         }
+
+        // Resting thumb or press keeps the thing alive
+        if(touch.ignore || presses.currently_pressed) {
+            lastTouchTicks = HAL_GetTick();
+        }
+
+        // If we haven't touched the device in a while,
+        // power it off automatically
+        if(HAL_GetTick() - lastTouchTicks >= PWROFF_INACTIVE_TIME_MS) {
+            break;
+        }
+
     }
 
     // Flash red to indicate shutting down
