@@ -127,6 +127,7 @@ touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
 
 #define COMMAND_START       0xFD
 #define COMMAND_MOUSE_TYPE  0x02
+#define COMMAND_CONSUMER_TYPE 0x03
 
 // Index is 0 for first pad at that index
 // Return in range 1 to 100
@@ -382,6 +383,32 @@ void issue_hid_mouse_command(int8_t x_move, int8_t y_move, int8_t scroll, uint8_
     HAL_UART_Transmit(&huart1, (uint8_t*)&hid_command, sizeof(hid_command), 100);
 }
 
+#define VOLUME_UP_LOW_BYTE 0x10
+#define VOLUME_UP_HIGH_BYTE 0x00
+#define VOLUME_DOWN_LOW_BYTE 0x20
+#define VOLUME_DOWN_HIGH_BYTE 0x00
+#define NEXT_LOW_BYTE 0x00
+#define NEXT_HIGH_BYTE 0x01
+#define PREV_LOW_BYTE 0x00
+#define PREV_HIGH_BYTE 0x02
+#define PLAY_PAUSE_LOW_BYTE 0x80
+#define PLAY_PAUSE_HIGH_BYTE 0x00
+#define RELEASE 0x00
+
+void issue_hid_consumer_report(int8_t command_low_byte, int8_t command_high_byte) {
+
+	uint8_t hid_command[] = {
+		COMMAND_START,
+		3, // Length of command
+		COMMAND_CONSUMER_TYPE,
+		(uint8_t) command_low_byte,
+		(uint8_t) command_high_byte,
+	};
+	
+	HAL_UART_Transmit(&huart1, (uint8_t*)&hid_command, sizeof(hid_command), 100);
+		
+}
+
 void move_and_tap_mouse(average_result_t deltas, press_result_t presses) {
 
     int mouse_dx = -deltas.y/2;
@@ -410,6 +437,40 @@ void scroll_mouse(average_result_t deltas, press_result_t presses) {
     }
 
     issue_hid_mouse_command( 0, 0, scroll_delta, 0);
+}
+
+
+void media_control(average_result_t deltas, press_result_t presses) {
+
+	int volume_control = deltas.x/15;
+	int skip_control = deltas.y/15;
+
+	// Ignore the movement if it's probably bogus
+    if(presses.just_pressed || !presses.currently_pressed) {
+        volume_control = 0;
+        skip_control = 0;
+    }
+    
+	// Key must be released after press
+	
+	// Control volume
+	if(volume_control > 0) {
+		issue_hid_consumer_report(VOLUME_UP_LOW_BYTE, VOLUME_UP_HIGH_BYTE);
+		issue_hid_consumer_report(RELEASE, RELEASE);
+	} else if(volume_control < 0) {
+		issue_hid_consumer_report(VOLUME_DOWN_LOW_BYTE, VOLUME_DOWN_HIGH_BYTE);
+		issue_hid_consumer_report(RELEASE, RELEASE);
+	}
+	
+	// Control skips
+	if(skip_control > 0 && !presses.just_released) {
+		issue_hid_consumer_report(NEXT_LOW_BYTE, NEXT_HIGH_BYTE);
+		issue_hid_consumer_report(RELEASE, RELEASE);
+	} else if(skip_control < 0 && !presses.just_released) {
+		issue_hid_consumer_report(PREV_LOW_BYTE, PREV_HIGH_BYTE);
+		issue_hid_consumer_report(RELEASE, RELEASE);
+	}
+	
 }
 
 void bt_send_cmd(char *s) {
@@ -451,7 +512,11 @@ typedef struct _touch {
 } touch_t;
 
 // Any pad > this will contribute to the 'ignore' count
-#define IGNORE_MIN_PRESSURE 4
+// Board dependent quantity:
+// Sebastian's Version == 4
+// Jamon's Version == 7
+
+#define IGNORE_MIN_PRESSURE 7
 
 // >= 6 pads will force an ignore
 #define IGNORE_PADS 6
@@ -526,6 +591,7 @@ void rgb_cycle() {
 enum modes {
     MODE_MOUSE = 0,
     MODE_SCROLL,
+    MODE_MEDIA,
     // Insert extra modes here
     MODE_N
 };
@@ -564,7 +630,7 @@ int main(void)
     // Boot time in systicks
     int tickStart = HAL_GetTick();
 
-    int current_mode = MODE_MOUSE;
+    int current_mode = MODE_MEDIA;
 
     int tickLastNotPressed = tickStart;
 
@@ -588,6 +654,9 @@ int main(void)
             case MODE_SCROLL:
                 set_led_brightness(GREEN_CHANNEL, target_brightness);
                 scroll_mouse(deltas, presses);
+            case MODE_MEDIA:
+            	set_led_brightness(BLUE_CHANNEL, target_brightness);
+            	media_control(deltas, presses);
             break;
         }
 
