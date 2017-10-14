@@ -443,33 +443,45 @@ void scroll_mouse(average_result_t deltas, press_result_t presses) {
 void media_control(average_result_t deltas, press_result_t presses) {
 
 	int volume_control = deltas.x/15;
-	int skip_control = deltas.y/15;
+	//int skip_control = deltas.y/15;
 
+	uint8_t command_low_byte = RELEASE;
+	uint8_t command_high_byte = RELEASE;
+	
 	// Ignore the movement if it's probably bogus
     if(presses.just_pressed || !presses.currently_pressed) {
         volume_control = 0;
-        skip_control = 0;
+        //skip_control = 0;
     }
     
 	// Key must be released after press
 	
 	// Control volume
 	if(volume_control > 0) {
-		issue_hid_consumer_report(VOLUME_UP_LOW_BYTE, VOLUME_UP_HIGH_BYTE);
-		issue_hid_consumer_report(RELEASE, RELEASE);
+		command_low_byte = VOLUME_UP_LOW_BYTE;
+		command_high_byte = VOLUME_UP_HIGH_BYTE;
 	} else if(volume_control < 0) {
-		issue_hid_consumer_report(VOLUME_DOWN_LOW_BYTE, VOLUME_DOWN_HIGH_BYTE);
-		issue_hid_consumer_report(RELEASE, RELEASE);
+		command_low_byte = VOLUME_DOWN_LOW_BYTE;
+		command_high_byte = VOLUME_DOWN_HIGH_BYTE;
 	}
 	
-	// Control skips
+	/*// Control skips (NOT YET WORKING)
 	if(skip_control > 0 && !presses.just_released) {
 		issue_hid_consumer_report(NEXT_LOW_BYTE, NEXT_HIGH_BYTE);
 		issue_hid_consumer_report(RELEASE, RELEASE);
 	} else if(skip_control < 0 && !presses.just_released) {
 		issue_hid_consumer_report(PREV_LOW_BYTE, PREV_HIGH_BYTE);
 		issue_hid_consumer_report(RELEASE, RELEASE);
+	}*/
+	
+	// Control play/pause
+	if(presses.just_tapped) {
+		command_low_byte = PLAY_PAUSE_LOW_BYTE;
+		command_high_byte = PLAY_PAUSE_HIGH_BYTE;
 	}
+	
+	issue_hid_consumer_report(command_low_byte, command_high_byte);
+	issue_hid_consumer_report(RELEASE, RELEASE);
 	
 }
 
