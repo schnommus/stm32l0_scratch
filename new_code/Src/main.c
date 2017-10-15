@@ -126,6 +126,7 @@ touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
 #define SAMPLE_Y 1
 
 #define COMMAND_START       0xFD
+#define COMMAND_KEYBOARD_TYPE 0x01
 #define COMMAND_MOUSE_TYPE  0x02
 #define COMMAND_CONSUMER_TYPE 0x03
 
@@ -409,6 +410,46 @@ void issue_hid_consumer_report(int8_t command_low_byte, int8_t command_high_byte
 		
 }
 
+/* Modifier applies shifts/ctrl etc
+
+LSB - Left CTRL
+Bit 1 - Left SHIFT
+Bit 2 - Left ALT
+Bit 3 - Left GUI
+Bit 4 - Right CTRL
+Bit 5 - Right SHIFT
+Bit 6 - Right ALT
+MSB -  Right GUI
+
+NOTE: CURRENTLY ONLY SENDS ONE CHARACTER AT A TIME
+*/ 
+
+#define UP_ARROW_KEY 0x52
+#define RIGHT_ARROW_KEY 0x4F
+#define LEFT_ARROW_KEY 0x50
+#define DOWN_ARROW_KEY 0x51
+#define ENTER_KEY 0x28
+
+void issue_hid_keyboard_command(int8_t modifier, int8_t keyboard_char) {
+	
+	uint8_t hid_command[] = {
+		COMMAND_START,
+		9, // Length of command
+		COMMAND_KEYBOARD_TYPE,
+		(uint8_t) modifier,
+		0,
+		(uint8_t) keyboard_char,
+		0,
+		0,
+		0,	// Can add more characters here
+		0,
+		0,
+	};
+	
+	HAL_UART_Transmit(&huart1, (uint8_t*)&hid_command, sizeof(hid_command), 100);
+		
+}
+
 void move_and_tap_mouse(average_result_t deltas, press_result_t presses) {
 
     int mouse_dx = -deltas.y/2;
@@ -482,7 +523,7 @@ int media_control(average_result_t deltas, press_result_t presses, int cooldown_
 		command_low_byte = PLAY_PAUSE_LOW_BYTE;
 		command_high_byte = PLAY_PAUSE_HIGH_BYTE;
 	}
-	
+
 	issue_hid_consumer_report(command_low_byte, command_high_byte);
 	issue_hid_consumer_report(RELEASE, RELEASE);
 	
