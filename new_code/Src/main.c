@@ -405,9 +405,8 @@ void issue_hid_consumer_report(int8_t command_low_byte, int8_t command_high_byte
 		(uint8_t) command_low_byte,
 		(uint8_t) command_high_byte,
 	};
-	
+
 	HAL_UART_Transmit(&huart1, (uint8_t*)&hid_command, sizeof(hid_command), 100);
-		
 }
 
 /* Modifier applies shifts/ctrl etc
@@ -422,7 +421,7 @@ Bit 6 - Right ALT
 MSB -  Right GUI
 
 NOTE: CURRENTLY ONLY SENDS ONE CHARACTER AT A TIME
-*/ 
+*/
 
 #define UP_ARROW_KEY 0x52
 #define RIGHT_ARROW_KEY 0x4F
@@ -430,24 +429,23 @@ NOTE: CURRENTLY ONLY SENDS ONE CHARACTER AT A TIME
 #define DOWN_ARROW_KEY 0x51
 #define ENTER_KEY 0x28
 
-void issue_hid_keyboard_command(int8_t modifier, int8_t keyboard_char) {
-	
+void issue_hid_keyboard_command(int8_t modifier, int8_t keyboard_char1, int8_t keyboard_char2) {
+
 	uint8_t hid_command[] = {
 		COMMAND_START,
 		9, // Length of command
 		COMMAND_KEYBOARD_TYPE,
 		(uint8_t) modifier,
 		0,
-		(uint8_t) keyboard_char,
-		0,
+		(uint8_t) keyboard_char1,
+		(uint8_t) keyboard_char2,
 		0,
 		0,	// Can add more characters here
 		0,
 		0,
 	};
-	
+
 	HAL_UART_Transmit(&huart1, (uint8_t*)&hid_command, sizeof(hid_command), 100);
-		
 }
 
 void move_and_tap_mouse(average_result_t deltas, press_result_t presses) {
@@ -489,15 +487,15 @@ int media_control(average_result_t deltas, press_result_t presses, int cooldown_
 
 	uint8_t command_low_byte = RELEASE;
 	uint8_t command_high_byte = RELEASE;
-	
+
 	int cooldown_start = 0;
-	
+
 	// Ignore the movement if it's probably bogus
     if(presses.just_pressed || !presses.currently_pressed) {
         volume_control = 0;
         skip_control = 0;
     }
-	
+
 	// Control volume
 	if(volume_control > 0) {
 		command_low_byte = VOLUME_UP_LOW_BYTE;
@@ -506,7 +504,7 @@ int media_control(average_result_t deltas, press_result_t presses, int cooldown_
 		command_low_byte = VOLUME_DOWN_LOW_BYTE;
 		command_high_byte = VOLUME_DOWN_HIGH_BYTE;
 	}
-	
+
 	// Control skips
 	if(skip_control > SKIP_THRESHOLD && cooldown_curr == 0) {
 		command_low_byte = NEXT_LOW_BYTE;
@@ -517,7 +515,7 @@ int media_control(average_result_t deltas, press_result_t presses, int cooldown_
 		command_high_byte = PREV_HIGH_BYTE;
 		cooldown_start = 1;
 	}
-	
+
 	// Control play/pause
 	if(presses.just_tapped) {
 		command_low_byte = PLAY_PAUSE_LOW_BYTE;
@@ -526,7 +524,7 @@ int media_control(average_result_t deltas, press_result_t presses, int cooldown_
 
 	issue_hid_consumer_report(command_low_byte, command_high_byte);
 	issue_hid_consumer_report(RELEASE, RELEASE);
-	
+
 	return cooldown_start;
 
 }
@@ -643,6 +641,18 @@ void rgb_cycle() {
     set_led_brightness(GREEN_CHANNEL, 0);
 }
 
+void arrows_control( touch_t touch, press_result_t presses ) {
+    uint8_t target_key1 = 0;
+    uint8_t target_key2 = 0;
+    if(presses.currently_pressed) {
+        if(touch.x < 30) target_key1 = DOWN_ARROW_KEY;
+        if(touch.x > 70) target_key1 = UP_ARROW_KEY;
+        if(touch.y < 30) target_key2 = RIGHT_ARROW_KEY;
+        if(touch.y > 70 ) target_key2 = LEFT_ARROW_KEY;
+    }
+    issue_hid_keyboard_command(0, target_key1, target_key2);
+}
+
 #define PWROFF_PUSHTIME_MS 1000
 #define PWROFF_INACTIVE_TIME_MS 60000
 #define MODESWITCH_PUSHTIME_MS 100
@@ -659,6 +669,7 @@ enum modes {
     MODE_MOUSE = 0,
     MODE_SCROLL,
     MODE_MEDIA,
+    MODE_ARROWS,
     // Insert extra modes here
     MODE_N
 };
@@ -699,7 +710,7 @@ int main(void)
     int current_mode = MODE_MEDIA;
     int lastButtonUnpressedTicks = tickStart;
     int lastTouchTicks = tickStart;
-    
+
     // Set up cooldown timer
     timer cooldown;
     cooldown.enabled = 0;
@@ -730,8 +741,13 @@ int main(void)
             	set_led_brightness(BLUE_CHANNEL, target_brightness);
             	cooldown.start = media_control(deltas, presses, cooldown.enabled);
             break;
+            case MODE_ARROWS:
+            	set_led_brightness(BLUE_CHANNEL, target_brightness);
+            	set_led_brightness(RED_CHANNEL, target_brightness);
+            	arrows_control(touch, presses);
+            break;
         }
-        
+
         // Manage cooldown - If started, set enable and start time
         // If enough time passed, disable
         if(cooldown.start) {
@@ -739,15 +755,13 @@ int main(void)
         	cooldown.start = 0;
         	cooldown.start_time = HAL_GetTick();
         }
-        
         if(cooldown.enabled == 1 && HAL_GetTick() - cooldown.start_time > COOLDOWN_LENGTH) {
         	cooldown.enabled = 0;
         	cooldown.start_time = 0;
-        }  
-        
+        }
+
         // If power button is held down for longer than specific time
         // turn the device off. If it is pressed for a short time, change modes.
-        
         if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
             if(HAL_GetTick() - lastButtonUnpressedTicks > PWROFF_PUSHTIME_MS) {
                 break;
