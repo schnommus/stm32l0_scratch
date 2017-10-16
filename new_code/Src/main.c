@@ -112,14 +112,14 @@ typedef struct _touch_pad {
 
 touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
     // X PADS
-    {TSC_GROUP1_IO2, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 265, 35}, // 2 diamonds closest to chip (x1)
-    {TSC_GROUP1_IO3, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 249, 37}, // (x2)
-    {TSC_GROUP1_IO4, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 265, 39}, // (x3)
-    {TSC_GROUP2_IO2, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 231, 45}, // 2 diamonds closest to end (x4)
+    {TSC_GROUP1_IO2, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 255, 33}, // 2 diamonds closest to chip (x1)
+    {TSC_GROUP1_IO3, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 238, 35}, // (x2)
+    {TSC_GROUP1_IO4, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 254, 39}, // (x3)
+    {TSC_GROUP2_IO2, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 224, 40}, // 2 diamonds closest to end (x4)
     // Y PADS
-    {TSC_GROUP2_IO3, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 284, 45}, // Y, LED side (y1)
-    {TSC_GROUP2_IO4, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 226, 34}, // (y2)
-    {TSC_GROUP4_IO2, TSC_GROUP4_IO1, TSC_GROUP4_IDX, 290, 47}, // Y, Switch side (y3)
+    {TSC_GROUP2_IO3, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 275, 28}, // Y, LED side (y1)
+    {TSC_GROUP2_IO4, TSC_GROUP2_IO1, TSC_GROUP2_IDX, 219, 21}, // (y2)
+    {TSC_GROUP4_IO2, TSC_GROUP4_IO1, TSC_GROUP4_IDX, 288, 25}, // Y, Switch side (y3)
 };
 
 #define SAMPLE_X 0
@@ -545,8 +545,8 @@ void program_rn42_module() {
 
     bt_send_cmd("$$$");
     bt_send_cmd("SF,1\r");
-    bt_send_cmd("S-,SmartCutlery\r");
-    bt_send_cmd("SN,SmartCutlery\r");
+    bt_send_cmd("S-,CutleryController\r");
+    bt_send_cmd("SN,CutleryController\r");
     bt_send_cmd("SS,Keyboard/Mouse\r");
     bt_send_cmd("SM,4\r");
     bt_send_cmd("S~,6\r");
@@ -572,7 +572,7 @@ typedef struct _touch {
 // Sebastian's Version == 4
 // Jamon's Version == 7
 
-#define IGNORE_MIN_PRESSURE 7
+#define IGNORE_MIN_PRESSURE 5
 
 // > N pads will force an ignore
 #define IGNORE_PADS 6
@@ -587,6 +587,9 @@ touch_t sample_touch() {
     int y1 = sample_touch_at(0, SAMPLE_Y);
     int y2 = sample_touch_at(1, SAMPLE_Y);
     int y3 = sample_touch_at(2, SAMPLE_Y);
+
+    printf("x1: %d, x2: %d, x3: %d, x4: %d, y1: %d, y2: %d, y3: %d\n",
+            x1, x2, x3, x4, y1, y2, y3);
 
     int ignore_count =
         (x1 > IGNORE_MIN_PRESSURE) +
