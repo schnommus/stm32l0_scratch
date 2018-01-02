@@ -572,7 +572,7 @@ typedef struct _touch {
 // Sebastian's Version == 4
 // Jamon's Version == 7
 
-#define IGNORE_MIN_PRESSURE 5
+#define IGNORE_MIN_PRESSURE 50
 
 // > N pads will force an ignore
 #define IGNORE_PADS 6
